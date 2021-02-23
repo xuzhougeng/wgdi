@@ -1,6 +1,7 @@
 import re
 import sys
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 import numpy as np
 import pandas as pd
 import wgdi.base as base
@@ -16,6 +17,8 @@ class block_ks():
         self.position = 'order'
         self.ks_col = 'ks_NG86'
         self.pvalue = 0.01
+        self.show_text =False
+        self.show_block = False
         for k, v in options:
             setattr(self, str(k), v)
             print(str(k), ' = ', v)
@@ -46,6 +49,21 @@ class block_ks():
                 locx = (dict_x_chr[row['chr2']]+float(block2[i]))*step2
                 pairs.append([locx, locy, float(ks[i])])
         return pos, pairs
+
+    def block_position2(self, bkinfo, lens1, lens2, step1, step2):
+        pos = []
+        dict_y_chr = dict(zip(lens1.index, np.append(
+            np.array([0]), lens1.cumsum()[:-1].values)))
+        dict_x_chr = dict(zip(lens2.index, np.append(
+            np.array([0]), lens2.cumsum()[:-1].values)))
+        for index, row in bkinfo.iterrows():
+            y_start = (dict_y_chr[row['chr1']] + row['start1']) * step1
+            y_end   = (dict_y_chr[row['chr1']] + row['end1']) * step1
+            x_start = (dict_y_chr[row['chr2']] + row['start2']) * step2
+            x_end   = (dict_y_chr[row['chr2']] + row['end2']) * step2
+            pos.append([x_start, x_end, y_start, y_end,row['id']])
+
+        return pos
 
     def remove_tandem(self, bkinfo):
         group = bkinfo[bkinfo['chr1'] == bkinfo['chr2']].copy()
@@ -89,6 +107,17 @@ class block_ks():
         df.drop_duplicates(inplace=True)
         sc = plt.scatter(df['loc1'], df['loc2'], s=float(self.markersize), c=df['ks'],
                          alpha=0.9, edgecolors=None, linewidths=0, marker='o', vmin=self.area[0], vmax=self.area[1], cmap=cm)
+        # add retangle of each block
+        if self.show_block == True or self.show_block == 'true' or self.show_block == 1:
+            pos2 = self.block_position2(bkinfo, lens1, lens2, step1, step2)
+            for loc in pos2:
+                x = loc[0]
+                y = loc[2]
+                w = loc[1] - loc[0]
+                h = loc[3] - loc[2]
+                p = Rectangle((x,y), w,h, fill=False, edgecolor='r', facecolor='none')
+                ax.add_patch(p)
+                if self.show_text == True or self.show_text == 'true' or self.show_text == 1:
         # sc = plt.scatter(df['loc1'], df['loc2'], s=float(self.markersize), c='dimgray',
         #                  alpha=0.7, edgecolors=None, linewidths=0, marker='o', vmin=self.area[0], vmax=self.area[1])
         cbar = fig.colorbar(sc, shrink=0.5, pad=0.03, fraction=0.1)
